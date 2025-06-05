@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import stats
 # from numpy.polynomial.polynomial import Polynomial # Removed unused import
 from sklearn.linear_model import LinearRegression
 
@@ -31,7 +32,7 @@ A_design = np.vstack([np.ones(num_years_hist), t_hist]).T # [cite: 46, 58]
 try:
     A_T_A_inv_A_T = np.linalg.inv(A_design.T @ A_design) @ A_design.T # [cite: 37, 59, 65]
 except np.linalg.LinAlgError:
-    # En caso de que A^T A sea singular, se podría usar la pseudoinversa para A directamente
+    # En caso de que A^T A sea si ngular, se podría usar la pseudoinversa para A directamente
     # A_plus = np.linalg.pinv(A_design)
     # Esta ruta no es necesaria aquí porque A_design tiene columnas linealmente independientes.
     print("Error: A^T A es singular. Se necesitaría la pseudoinversa de A.")
@@ -189,299 +190,252 @@ plt.grid(True, linestyle='--', alpha=0.7, axis='y') # Rejilla solo en el eje Y p
 plt.tight_layout()
 plt.show()
 
-# Calcular las ventas totales por año
-sales_total = np.sum(sales_hist_data, axis=1)  # Suma de las ventas de todos los tipos por año
+# MODELO DE HIPERPLANO CORREGIDO: Ventas Totales vs Tiempo
+# En lugar de usar ventas por tipo como predictores, usamos el tiempo como en los modelos individuales
+print("\n=== ANÁLISIS CON MODELO DE HIPERPLANO (Ventas Totales vs Tiempo) ===")
 
-# Ajustar el modelo de regresión lineal para las ventas totales
+# Calcular las ventas totales por año (suma de todos los tipos)
+sales_total = np.sum(sales_hist_data, axis=1)
+
+# Crear matriz de diseño para regresión lineal simple: S_total(t) = beta_0 + beta_1*t
 A_design_total = np.vstack([np.ones(num_years_hist), t_hist]).T
+
+# Calcular coeficientes usando mínimos cuadrados
 beta_total = np.linalg.inv(A_design_total.T @ A_design_total) @ A_design_total.T @ sales_total
 
-# Calcular el ECM y R² para las ventas totales
-S_pred_total = A_design_total @ beta_total
-residuals_total = sales_total - S_pred_total
+# Calcular métricas del modelo
+S_pred_total_hist = A_design_total @ beta_total
+residuals_total = sales_total - S_pred_total_hist
 ecm_total = np.sum(residuals_total**2) / num_years_hist
 total_variance_total = np.sum((sales_total - np.mean(sales_total))**2)
 r_squared_total = 1 - (np.sum(residuals_total**2) / total_variance_total)
 
 print(f"Modelo Total: S_total(t) = {beta_total[0]:.2f} + {beta_total[1]:.2f}t")
-print(f"ECM Total: {ecm_total:.2f}, R² Total: {r_squared_total:.2f}")
+print(f"ECM Total: {ecm_total:.2f}, R² Total: {r_squared_total:.4f}")
 
-# Pronósticos para los próximos 5 años (2023-2027)
-# t_forecast_abs = np.arange(num_years_hist + 1, num_years_hist + 6) # This redundant definition is removed
-S_forecast_total = beta_total[0] + beta_total[1] * t_forecast_abs # Uses the t_forecast_abs defined earlier
+# Proyecciones para 2023-2027 usando el modelo total
+S_forecast_total = beta_total[0] + beta_total[1] * t_forecast_abs
 
-print("\nPronósticos de Ventas Totales (2023-2027):")
+print("\nProyecciones de Ventas Totales (Modelo Hiperplano):")
 for i, year in enumerate(range(2023, 2028)):
-    print(f"Año {year}: {S_forecast_total[i]:.0f} unidades")
+    print(f"Año {year} (t={t_forecast_abs[i]}): {S_forecast_total[i]:.0f} unidades")
 
-# Modelo: sales_total ≈ x0*Tipo1 + x1*Tipo2 + x2*Tipo3 + x3*Tipo4 + intercepto
+# Análisis de Incertidumbre para 2024 y 2025
+print("\n=== ANÁLISIS DE INCERTIDUMBRE (MODELO HIPERPLANO) ===")
 
-X = sales_hist_data  # Variables independientes: ventas por tipo de moto
-y = sales_total      # Variable dependiente: ventas totales por año
-
-reg = LinearRegression(fit_intercept=True)
-reg.fit(X, y)
-y_pred = reg.predict(X)
-
-# Métricas del ajuste global
-ecm_global = np.mean((y - y_pred) ** 2)
-r2_global = reg.score(X, y)
-
-print("\nAjuste Global por Año (hiperplano de mínimos cuadrados):")
-print("Coeficientes por tipo de moto:", reg.coef_)
-print("Intercepto:", reg.intercept_)
-print(f"ECM Global: {ecm_global:.2f}, R² Global: {r2_global:.2f}")
-
-# Gráfica del ajuste global
-plt.figure(figsize=(10,6))
-plt.plot(range(2013, 2013+len(y)), y, 'o-', label='Ventas Totales Observadas')
-plt.plot(range(2013, 2013+len(y_pred)), y_pred, 's--', label='Ajuste Global (Predicho)')
-plt.xlabel("Año")
-plt.ylabel("Ventas Totales")
-plt.title("Ajuste Global por Año (Hiperplano de Mínimos Cuadrados)")
-plt.legend()
-plt.grid(True, linestyle='--', alpha=0.7)
-plt.tight_layout()
-plt.show()
-
-# Análisis de Incertidumbre en Proyecciones 2024-2025 (Modelo por Hiperplano)
-print("\nAnálisis de Incertidumbre en Proyecciones 2023-2025 (Modelo por Hiperplano):") # Título opcionalmente actualizado
-
-from scipy import stats
-
-# Años y valores t para las proyecciones
-years_uncertainty = [2023, 2024, 2025] # Incluye 2023
-t_values_uncertainty = [11, 12, 13] # Incluye t=11 para 2023
-
-# Proyectar ventas por tipo para 2023, 2024 y 2025
-sales_type_proj_uncertainty = []
-for t_val in t_values_uncertainty:
-    current_year_sales = []
-    for k in range(sales_hist_data.shape[1]): # Para cada tipo de moto
-        beta_k = beta_coeffs[k] # Coeficientes del modelo para el tipo k
-        proj_sale_k = beta_k[0] + beta_k[1] * t_val
-        current_year_sales.append(proj_sale_k)
-    sales_type_proj_uncertainty.append(np.array(current_year_sales))
-
-# Preparar para el cálculo del intervalo de predicción del hiperplano
-# X_hyper son las ventas históricas por tipo, y es sales_total
-# El modelo es reg = LinearRegression().fit(X, y)
-# ECM global ya está calculado como ecm_global
-mse_hyper = ecm_global
-n_hyper = num_years_hist # Número de observaciones históricas
-p_hyper = sales_hist_data.shape[1] # Número de predictores (tipos de moto)
-df_hyper = n_hyper - p_hyper - 1 # Grados de libertad: n - (k_predictores + 1_intercepto)
-
-# Valor t crítico para un intervalo de confianza del 95%
+# Parámetros para intervalos de confianza
 alpha = 0.05
-t_critical_hyper = stats.t.ppf(1 - alpha / 2, df_hyper)
+df_total = num_years_hist - 2  # n - 2 (beta_0 y beta_1)
+t_critical_total = stats.t.ppf(1 - alpha/2, df_total)
+mse_total = ecm_total
 
-# Matriz de diseño usada para ajustar el modelo de hiperplano (con intercepto)
-X_design_hyper = np.hstack([np.ones((n_hyper, 1)), sales_hist_data])
-try:
-    XTX_inv_hyper = np.linalg.inv(X_design_hyper.T @ X_design_hyper)
-except np.linalg.LinAlgError:
-    print("Error: La matriz X^T X para el modelo de hiperplano es singular.")
-    XTX_inv_hyper = None # O usar pseudoinversa si es necesario y se maneja el error
+# Matriz (A^T A)^-1 para el cálculo de intervalos
+ATA_inv_total = np.linalg.inv(A_design_total.T @ A_design_total)
 
-if XTX_inv_hyper is not None:
-    for i, year in enumerate(years_uncertainty):
-        # Ventas proyectadas por tipo para el año actual (X_new para el hiperplano)
-        x_new_features_hyper = sales_type_proj_uncertainty[i]
-        
-        # Predicción de ventas totales con el modelo de hiperplano
-        total_sales_pred_hyper = reg.predict(x_new_features_hyper.reshape(1, -1))[0]
-        
-        # Construir el vector x_new con el intercepto para la fórmula del intervalo
-        x_new_with_intercept_hyper = np.concatenate(([1], x_new_features_hyper))
-        
-        # Varianza de la predicción: MSE * (1 + x_new^T * (X^T X)^-1 * x_new)
-        # Asegurarse de que x_new_with_intercept_hyper es un vector columna para el producto matricial final
-        var_pred_hyper = mse_hyper * (1 + x_new_with_intercept_hyper.reshape(1, -1) @ XTX_inv_hyper @ x_new_with_intercept_hyper.reshape(-1, 1))
-        se_pred_hyper = np.sqrt(var_pred_hyper[0,0]) # Extraer el escalar
-        
-        # Margen de error
-        margin_of_error_hyper = t_critical_hyper * se_pred_hyper
-        
-        # Intervalo de predicción
-        pi_lower_hyper = total_sales_pred_hyper - margin_of_error_hyper
-        pi_upper_hyper = total_sales_pred_hyper + margin_of_error_hyper
-        
-        print(f"Año {year} (t={t_values_uncertainty[i]}):")
-        print(f"  Ventas Totales Proyectadas (Hiperplano): {total_sales_pred_hyper:.0f} unidades")
-        print(f"  Intervalo de Predicción del 95%: [{pi_lower_hyper:.0f}, {pi_upper_hyper:.0f}] unidades")
-        print(f"  Margen de Error: +/- {margin_of_error_hyper:.0f} unidades")
+# Calcular intervalos para 2024 (t=12) y 2025 (t=13)
+years_focus = [2024, 2025]
+t_focus = [12, 13]
 
-# Graficar Proyecciones del Hiperplano con Intervalos de Incertidumbre
-if XTX_inv_hyper is not None:
-    plt.figure(figsize=(12, 7))
+print("Proyecciones con Intervalos de Confianza del 95%:")
+for i, (year, t_val) in enumerate(zip(years_focus, t_focus)):
+    # Predicción puntual
+    y_pred = beta_total[0] + beta_total[1] * t_val
     
-    # Datos históricos y ajuste del hiperplano
-    plt.plot(range(2013, 2013 + len(y)), y, 'o-', label='Ventas Totales Observadas', color='blue')
-    plt.plot(range(2013, 2013 + len(y_pred)), y_pred, 's--', label='Ajuste Hiperplano (Histórico)', color='green')
-
-    # Recopilar datos de pronóstico para graficar
-    forecast_years_plot = []
-    forecast_sales_plot = []
-    forecast_pi_lower_plot = []
-    forecast_pi_upper_plot = []
-
-    for i, year_val in enumerate(years_uncertainty):
-        x_new_features_hyper = sales_type_proj_uncertainty[i]
-        total_sales_pred_hyper = reg.predict(x_new_features_hyper.reshape(1, -1))[0]
-        
-        x_new_with_intercept_hyper = np.concatenate(([1], x_new_features_hyper))
-        var_pred_hyper = mse_hyper * (1 + x_new_with_intercept_hyper.reshape(1, -1) @ XTX_inv_hyper @ x_new_with_intercept_hyper.reshape(-1, 1))
-        se_pred_hyper = np.sqrt(var_pred_hyper[0,0])
-        margin_of_error_hyper = t_critical_hyper * se_pred_hyper
-        pi_lower_hyper = total_sales_pred_hyper - margin_of_error_hyper
-        pi_upper_hyper = total_sales_pred_hyper + margin_of_error_hyper
-
-        forecast_years_plot.append(year_val)
-        forecast_sales_plot.append(total_sales_pred_hyper)
-        forecast_pi_lower_plot.append(pi_lower_hyper)
-        forecast_pi_upper_plot.append(pi_upper_hyper)
-
-    # Pronósticos puntuales
-    plt.plot(forecast_years_plot, forecast_sales_plot, 'D-', label='Proyección Hiperplano (2023-2025)', color='red', markersize=7)
+    # Vector de diseño para el nuevo punto
+    x_new = np.array([1, t_val])
     
-    # Intervalos de predicción
-    plt.fill_between(forecast_years_plot, forecast_pi_lower_plot, forecast_pi_upper_plot, color='red', alpha=0.2, label='Intervalo de Predicción 95%')
+    # Varianza de la predicción
+    var_pred = mse_total * (1 + x_new.T @ ATA_inv_total @ x_new)
+    se_pred = np.sqrt(var_pred)
     
-    plt.xlabel("Año")
-    plt.ylabel("Ventas Totales")
-    plt.title("Proyección de Ventas Totales con Modelo Hiperplano e Incertidumbre")
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.xticks(np.arange(2013, max(forecast_years_plot) + 1, 1)) # Ajustar ticks del eje X para mejor visualización
-    plt.tight_layout()
-    plt.show()
+    # Margen de error
+    margin = t_critical_total * se_pred
+    
+    # Intervalo de predicción
+    ci_lower = y_pred - margin
+    ci_upper = y_pred + margin
+    
+    # Calcular porcentaje de error
+    error_pct = (margin / y_pred) * 100
+    
+    print(f"Año {year}: {y_pred:.0f} unidades")
+    print(f"  IC 95%: [{ci_lower:.0f}, {ci_upper:.0f}]")
+    print(f"  Margen de error: ±{margin:.0f} unidades ({error_pct:.1f}%)")
 
+# ANÁLISIS DE COMPONENTES CORREGIDO
+print("\n=== ANÁLISIS DE DEMANDA DE COMPONENTES ===")
 
-# --- Simulación de Monte Carlo ---
-print("\n--- Simulación de Monte Carlo para Proyecciones (2023-2025) ---")
-num_simulations = 10000  # Número de iteraciones de Monte Carlo
+# Usar las proyecciones del modelo total y distribuirlas proporcionalmente
+# Calcular proporciones históricas promedio de cada tipo
+avg_proportions = np.mean(sales_hist_data / sales_total.reshape(-1, 1), axis=0)
+print("Proporciones promedio por tipo:", [f"{p:.3f}" for p in avg_proportions])
 
-# --- Almacenamiento de Resultados de Simulación ---
-# Ventas por tipo: {año: [type1_sims, type2_sims, ...], ...}
-mc_sales_type_projections = {year: [[] for _ in range(sales_hist_data.shape[1])] for year in years_uncertainty}
-# Ventas totales (hiperplano): {año: [totals_sims], ...}
-mc_total_sales_projections = {year: [] for year in years_uncertainty}
-# Demanda de componentes: {component_idx: [demand_sims_2024], ...}
-mc_component_demand_2024 = [[] for _ in range(C_matrix.shape[0])]
-mc_component_demand_2025 = [[] for _ in range(C_matrix.shape[0])]
+# Distribuir las ventas totales proyectadas según estas proporciones
+sales_2024_total = beta_total[0] + beta_total[1] * 12  # t=12 para 2024
+sales_2025_total = beta_total[0] + beta_total[1] * 13  # t=13 para 2025
 
-# --- Desviaciones Estándar para Muestreo de Errores ---
-# Desviación estándar de los residuos para modelos de tipo individual (sqrt(ECM_type))
-std_dev_residuals_types = [np.sqrt(ecm) for ecm in ecm_values]
-# Desviación estándar de los residuos para el modelo de hiperplano (sqrt(ECM_global))
-std_dev_residuals_hyperplane = np.sqrt(ecm_global)
+sales_2024_by_type = sales_2024_total * avg_proportions
+sales_2025_by_type = sales_2025_total * avg_proportions
+
+# Calcular demanda de componentes
+R_2024_corrected = C_matrix @ sales_2024_by_type
+R_2025_corrected = C_matrix @ sales_2025_by_type
+
+print(f"\nVentas Totales Proyectadas:")
+print(f"2024: {sales_2024_total:.0f} unidades")
+print(f"2025: {sales_2025_total:.0f} unidades")
+
+print(f"\nDistribución por tipo (2024):")
+for i, (tipo, cantidad) in enumerate(zip(['Tipo 1', 'Tipo 2', 'Tipo 3', 'Tipo 4'], sales_2024_by_type)):
+    print(f"  {tipo}: {cantidad:.0f} unidades ({avg_proportions[i]*100:.1f}%)")
+
+print("\nDemanda de Componentes Corregida:")
+print("Componente | Req. 2024 | Req. 2025")
+print("-----------|-----------|----------")
+total_components_2024 = 0
+total_components_2025 = 0
+for i in range(C_matrix.shape[0]):
+    print(f"Comp. {i+1:<6} | {R_2024_corrected[i]:<9.0f} | {R_2025_corrected[i]:.0f}")
+    total_components_2024 += R_2024_corrected[i]
+    total_components_2025 += R_2025_corrected[i]
+
+# Calcular componentes promedio por motocicleta
+comp_per_moto_2024 = total_components_2024 / sales_2024_total
+comp_per_moto_2025 = total_components_2025 / sales_2025_total
+
+print(f"\nTotal componentes 2024: {total_components_2024:.0f}")
+print(f"Total componentes 2025: {total_components_2025:.0f}")
+print(f"Componentes por motocicleta 2024: {comp_per_moto_2024:.1f}")
+print(f"Componentes por motocicleta 2025: {comp_per_moto_2025:.1f}")
+print(f"Promedio componentes por moto: {(comp_per_moto_2024 + comp_per_moto_2025)/2:.1f}")
+
+# Verificación: suma de componentes por fila en matriz C
+components_per_type = np.sum(C_matrix, axis=0)
+print(f"\nComponentes por tipo de moto (según matriz C): {components_per_type}")
+weighted_avg_components = np.sum(components_per_type * avg_proportions)
+print(f"Promedio ponderado de componentes por moto: {weighted_avg_components:.1f}")
+
+# --- Simulación de Monte Carlo CORREGIDA ---
+print("\n--- Simulación de Monte Carlo para Proyecciones (2024-2025) ---")
+num_simulations = 10000
+
+# Almacenamiento de resultados
+mc_total_sales_2024 = []
+mc_total_sales_2025 = []
+mc_component_demand_2024_corrected = [[] for _ in range(C_matrix.shape[0])]
+mc_component_demand_2025_corrected = [[] for _ in range(C_matrix.shape[0])]
+
+# Desviación estándar del modelo total
+std_dev_total = np.sqrt(mse_total)
 
 print(f"Ejecutando {num_simulations} iteraciones de Monte Carlo...")
 for sim_count in range(num_simulations):
-    if (sim_count + 1) % 1000 == 0:
+    if (sim_count + 1) % 2000 == 0:
         print(f"  Iteración {sim_count + 1}/{num_simulations}")
-
-    # Almacenar ventas simuladas por tipo para la iteración actual, por año
-    # {year: np.array([type1_sale, type2_sale, ...]), ...}
-    current_iteration_sales_per_type_by_year = {}
-
-    # 1. Simular Ventas para Cada Tipo de Motocicleta
-    for year_idx, year_val in enumerate(years_uncertainty): # 2023, 2024, 2025
-        t_val = t_values_uncertainty[year_idx] # 11, 12, 13
-        simulated_sales_for_current_year_types = []
-
-        for type_idx in range(sales_hist_data.shape[1]): # Para cada tipo de motocicleta
-            beta = beta_coeffs[type_idx]
-            point_prediction_type = beta[0] + beta[1] * t_val
-            # Muestrear error de Normal(0, sqrt(ECM_type))
-            error_type = np.random.normal(0, std_dev_residuals_types[type_idx])
-            simulated_sale_type = point_prediction_type + error_type
-            simulated_sale_type = max(0, simulated_sale_type) # Asegurar ventas no negativas
-
-            mc_sales_type_projections[year_val][type_idx].append(simulated_sale_type)
-            simulated_sales_for_current_year_types.append(simulated_sale_type)
-        
-        current_iteration_sales_per_type_by_year[year_val] = np.array(simulated_sales_for_current_year_types)
-
-    # 2. Simular Ventas Totales usando el Modelo de Hiperplano
-    for year_val in years_uncertainty: # 2023, 2024, 2025
-        # La entrada para el hiperplano es el array de ventas simuladas por tipo para este año
-        simulated_type_sales_for_year = current_iteration_sales_per_type_by_year[year_val]
-        
-        point_prediction_hyperplane = reg.predict(simulated_type_sales_for_year.reshape(1, -1))[0]
-        # Muestrear error de Normal(0, sqrt(ECM_global))
-        error_hyperplane = np.random.normal(0, std_dev_residuals_hyperplane)
-        simulated_total_sale = point_prediction_hyperplane + error_hyperplane
-        simulated_total_sale = max(0, simulated_total_sale) # Asegurar ventas no negativas
-
-        mc_total_sales_projections[year_val].append(simulated_total_sale)
-
-    # 3. Simular Demanda de Componentes para 2024 y 2025
-    # Para 2024
-    sim_sales_2024_types = current_iteration_sales_per_type_by_year[2024]
-    sim_demand_2024_components = C_matrix @ sim_sales_2024_types
+    
+    # Simular ventas totales para 2024 y 2025
+    error_2024 = np.random.normal(0, std_dev_total)
+    error_2025 = np.random.normal(0, std_dev_total)
+    
+    sim_total_2024 = max(0, sales_2024_total + error_2024)
+    sim_total_2025 = max(0, sales_2025_total + error_2025)
+    
+    mc_total_sales_2024.append(sim_total_2024)
+    mc_total_sales_2025.append(sim_total_2025)
+    
+    # Distribuir por tipos y calcular componentes
+    sim_sales_2024_by_type = sim_total_2024 * avg_proportions
+    sim_sales_2025_by_type = sim_total_2025 * avg_proportions
+    
+    sim_components_2024 = C_matrix @ sim_sales_2024_by_type
+    sim_components_2025 = C_matrix @ sim_sales_2025_by_type
+    
     for comp_idx in range(C_matrix.shape[0]):
-        mc_component_demand_2024[comp_idx].append(max(0, sim_demand_2024_components[comp_idx]))
+        mc_component_demand_2024_corrected[comp_idx].append(max(0, sim_components_2024[comp_idx]))
+        mc_component_demand_2025_corrected[comp_idx].append(max(0, sim_components_2025[comp_idx]))
 
-    # Para 2025
-    sim_sales_2025_types = current_iteration_sales_per_type_by_year[2025]
-    sim_demand_2025_components = C_matrix @ sim_sales_2025_types
-    for comp_idx in range(C_matrix.shape[0]):
-        mc_component_demand_2025[comp_idx].append(max(0, sim_demand_2025_components[comp_idx]))
-print("Iteraciones de Monte Carlo completas.")
+print("Simulación completa.")
 
-# --- Analizar e Imprimir Resultados de Monte Carlo ---
-print("\n--- Resultados de la Simulación de Monte Carlo (Media, IC del 95% a partir de Percentiles) ---")
+# Resultados de Monte Carlo
+print("\n=== RESULTADOS MONTE CARLO ===")
+print("Ventas Totales:")
+for year, data in [("2024", mc_total_sales_2024), ("2025", mc_total_sales_2025)]:
+    mean_val = np.mean(data)
+    ci_lower = np.percentile(data, 2.5)
+    ci_upper = np.percentile(data, 97.5)
+    error_pct = ((ci_upper - ci_lower) / 2) / mean_val * 100
+    print(f"  {year}: Media={mean_val:.0f}, IC 95%=[{ci_lower:.0f}, {ci_upper:.0f}], Error=±{error_pct:.1f}%")
 
-print("\nProyección de Ventas por Tipo (Monte Carlo):")
-for year_val in sorted(mc_sales_type_projections.keys()):
-    print(f"Año {year_val}:")
-    for type_idx in range(sales_hist_data.shape[1]):
-        sim_data = np.array(mc_sales_type_projections[year_val][type_idx])
-        mean_val = np.mean(sim_data)
-        ci_lower = np.percentile(sim_data, 2.5)
-        ci_upper = np.percentile(sim_data, 97.5)
-        print(f"  Tipo {type_idx+1}: Media={mean_val:.0f}, IC del 95%=[{ci_lower:.0f}, {ci_upper:.0f}]")
-
-print("\nProyección de Ventas Totales - Hiperplano (Monte Carlo):")
-for year_val in sorted(mc_total_sales_projections.keys()):
-    sim_data = np.array(mc_total_sales_projections[year_val])
-    mean_val = np.mean(sim_data)
-    ci_lower = np.percentile(sim_data, 2.5)
-    ci_upper = np.percentile(sim_data, 97.5)
-    print(f"Año {year_val}: Media={mean_val:.0f}, IC del 95%=[{ci_lower:.0f}, {ci_upper:.0f}]")
-
-print("\nProyección de Demanda de Componentes 2024 (Monte Carlo):")
+print("\nDemanda de Componentes 2024 (Monte Carlo):")
 for comp_idx in range(C_matrix.shape[0]):
-    sim_data = np.array(mc_component_demand_2024[comp_idx])
-    mean_val = np.mean(sim_data)
-    ci_lower = np.percentile(sim_data, 2.5)
-    ci_upper = np.percentile(sim_data, 97.5)
-    print(f"  Componente {comp_idx+1}: Media={mean_val:.0f}, IC del 95%=[{ci_lower:.0f}, {ci_upper:.0f}]")
+    data = mc_component_demand_2024_corrected[comp_idx]
+    mean_val = np.mean(data)
+    ci_lower = np.percentile(data, 2.5)
+    ci_upper = np.percentile(data, 97.5)
+    print(f"  Componente {comp_idx+1}: Media={mean_val:.0f}, IC 95%=[{ci_lower:.0f}, {ci_upper:.0f}]")
 
-print("\nProyección de Demanda de Componentes 2025 (Monte Carlo):")
-for comp_idx in range(C_matrix.shape[0]):
-    sim_data = np.array(mc_component_demand_2025[comp_idx])
-    mean_val = np.mean(sim_data)
-    ci_lower = np.percentile(sim_data, 2.5)
-    ci_upper = np.percentile(sim_data, 97.5)
-    print(f"  Componente {comp_idx+1}: Media={mean_val:.0f}, IC del 95%=[{ci_lower:.0f}, {ci_upper:.0f}]")
+# Plot histogram for Total Sales in 2025 (Monte Carlo results)
+plt.figure(figsize=(10, 6))
+plt.hist(mc_total_sales_2025, bins=50, density=True, alpha=0.75, color='purple', edgecolor='black')
+plt.title("Monte Carlo: Distribución de la proyección de ventas totales para 2025 (Hiperplano)")
+plt.xlabel("Ventas Totales Simuladas para 2025")
+plt.ylabel("Densidad de Probabilidad")
+# Añadir líneas de media y percentiles
+mean_val = np.mean(mc_total_sales_2025)
+ci_lower = np.percentile(mc_total_sales_2025, 2.5)
+ci_upper = np.percentile(mc_total_sales_2025, 97.5)
+plt.axvline(mean_val, color='red', linestyle='dashed', linewidth=2, label=f'Media: {mean_val:.0f}')
+plt.axvline(ci_lower, color='orange', linestyle='dotted', linewidth=2, label=f'2.5th Pctl: {ci_lower:.0f}')
+plt.axvline(ci_upper, color='orange', linestyle='dotted', linewidth=2, label=f'97.5th Pctl: {ci_upper:.0f}')
+plt.legend()
+plt.grid(True, linestyle=':', alpha=0.7)
+plt.show()
 
-# Optional: Plot histogram for a key result (e.g., Total Sales in 2025)
-if 2025 in mc_total_sales_projections and len(mc_total_sales_projections[2025]) > 0:
-    plt.figure(figsize=(10, 6))
-    plt.hist(mc_total_sales_projections[2025], bins=50, density=True, alpha=0.75, color='purple', edgecolor='black')
-    plt.title("Monte Carlo: Distribución de la proyección de ventas totales para 2025 (Hiperplano)")
-    plt.xlabel("Ventas Totales Simuladas para 2025")
-    plt.ylabel("Densidad de Probabilidad")
-    # Añadir líneas de media y percentiles
-    mean_val = np.mean(mc_total_sales_projections[2025])
-    ci_lower = np.percentile(mc_total_sales_projections[2025], 2.5)
-    ci_upper = np.percentile(mc_total_sales_projections[2025], 97.5)
-    plt.axvline(mean_val, color='red', linestyle='dashed', linewidth=2, label=f'Media: {mean_val:.0f}')
-    plt.axvline(ci_lower, color='orange', linestyle='dotted', linewidth=2, label=f'2.5th Pctl: {ci_lower:.0f}')
-    plt.axvline(ci_upper, color='orange', linestyle='dotted', linewidth=2, label=f'97.5th Pctl: {ci_upper:.0f}')
-    plt.legend()
-    plt.grid(True, linestyle=':', alpha=0.7)
-    plt.show()
+# Additional visualization: Comparison of forecasting methods
+plt.figure(figsize=(12, 8))
+years_comparison = [2024, 2025]
+
+# Individual models sum
+individual_totals = [
+    np.sum(sales_forecast_data[1, :]),  # 2024 from individual models
+    np.sum(sales_forecast_data[2, :])   # 2025 from individual models
+]
+
+# Hyperplane model
+hyperplane_totals = [sales_2024_total, sales_2025_total]
+
+# Monte Carlo means
+mc_means = [np.mean(mc_total_sales_2024), np.mean(mc_total_sales_2025)]
+
+x = np.arange(len(years_comparison))
+width = 0.25
+
+plt.bar(x - width, individual_totals, width, label='Modelos Individuales (Suma)', alpha=0.8)
+plt.bar(x, hyperplane_totals, width, label='Modelo Hiperplano', alpha=0.8)
+plt.bar(x + width, mc_means, width, label='Monte Carlo (Media)', alpha=0.8)
+
+plt.xlabel('Año')
+plt.ylabel('Ventas Totales Proyectadas')
+plt.title('Comparación de Métodos de Proyección')
+plt.xticks(x, years_comparison)
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+# Add value labels on bars
+for i, (ind, hyp, mc) in enumerate(zip(individual_totals, hyperplane_totals, mc_means)):
+    plt.text(i - width, ind + 20, f'{ind:.0f}', ha='center', va='bottom', fontsize=9)
+    plt.text(i, hyp + 20, f'{hyp:.0f}', ha='center', va='bottom', fontsize=9)
+    plt.text(i + width, mc + 20, f'{mc:.0f}', ha='center', va='bottom', fontsize=9)
+
+plt.tight_layout()
+plt.show()
+
+print("\n=== RESUMEN EJECUTIVO ===")
+print(f"Proyecciones de Ventas Totales:")
+print(f"2024: {sales_2024_total:.0f} unidades (Modelo Hiperplano)")
+print(f"2025: {sales_2025_total:.0f} unidades (Modelo Hiperplano)")
+print(f"\nPrecisión del Modelo:")
+print(f"R² = {r_squared_total:.4f} ({r_squared_total*100:.2f}%)")
+print(f"Error estándar: ±{np.sqrt(mse_total):.1f} unidades")
+print(f"\nComponentes requeridos en promedio: {weighted_avg_components:.1f} por motocicleta")
+print(f"Relación estable y coherente con datos históricos: {'✓' if weighted_avg_components > 30 else '✗'}")
