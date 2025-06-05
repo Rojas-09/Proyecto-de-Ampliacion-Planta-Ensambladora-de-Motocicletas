@@ -29,24 +29,35 @@ Proyecto de análisis predictivo para MotoTec que utiliza **métodos de mínimos
 ## 📁 Estructura del Proyecto
 
 ```
-├── regresion_svd.py              # Implementación SVD para regresión
-├── import numpy as np II.py      # Análisis completo principal
-├── Lineal.tex                    # Documentación técnica completa
-├── *.png                         # Gráficos y visualizaciones
-├── *.pdf                         # Reportes y documentación
-└── .vscode/                      # Configuración del entorno
+├── Scripts/
+│   ├── analisis_completo.py         # Análisis principal completo
+│   ├── regresion_svd.py             # Implementación SVD para regresión
+│   └── Lineal.tex                   # Documentación técnica completa
+├── Image/
+│   ├── Ventas historicas y pronosticadas por tipo moto.png
+│   ├── Ajuste global por año (Hiperplano por minimos).png
+│   ├── Demanda estimada de componentes para 2024 y 2025.png
+│   ├── Monte carlo Distribucion de la proyeccion de ventas totales para 2025.png
+│   ├── Proyeccion de ventas totales con modelo hiperplano e incertidumbre.png
+│   └── Comparacion de metodos de proyeccion.png
+├── Docs/
+│   ├── Proyecto Ampliacion MotoTec.pdf
+│   └── Proyecto_final_ýlgebra_Lineal (1).pdf
+├── .vscode/
+│   └── settings.json                # Configuración del entorno
+└── README.md                        # Este archivo
 ```
 
 ## 🚀 Ejecución
 
-### Análisis Principal
+### Análisis Principal Completo
 ```bash
-python "import numpy as np II.py"
+python Scripts/analisis_completo.py
 ```
 
 ### Análisis con SVD
 ```bash
-python regresion_svd.py
+python Scripts/regresion_svd.py
 ```
 
 ## 📈 Resultados Clave
@@ -74,11 +85,12 @@ python regresion_svd.py
 
 ## 📊 Visualizaciones Incluidas
 
-- Ventas históricas y pronosticadas por tipo
-- Ajuste global por año (Hiperplano)
-- Demanda estimada de componentes
-- Distribución Monte Carlo de proyecciones
-- Comparación de métodos de proyección
+- [Ventas históricas y pronosticadas por tipo](Image/Ventas%20historicas%20y%20pronosticadas%20por%20tipo%20moto.png)
+- [Ajuste global por año (Hiperplano)](Image/Ajuste%20global%20por%20año%20(Hiperplano%20por%20minimos).png)
+- [Demanda estimada de componentes](Image/Demanda%20estimada%20de%20componentes%20para%202024%20y%202025.png)
+- [Distribución Monte Carlo de proyecciones](Image/Monte%20carlo%20Distribucion%20de%20la%20proyeccion%20de%20ventas%20totales%20para%202025.png)
+- [Proyección con incertidumbre](Image/Proyeccion%20de%20ventas%20totales%20con%20modelo%20hiperplano%20e%20incertidumbre.png)
+- [Comparación de métodos de proyección](Image/Comparacion%20de%20metodos%20de%20proyeccion.png)
 
 ## 🔍 Metodología
 
@@ -103,11 +115,16 @@ Matriz C (10×4) define requerimientos por tipo de moto:
 
 ## 📄 Documentación
 
-El análisis completo está documentado en [`Lineal.tex`](Lineal.tex) con:
-- Marco teórico detallado
-- Metodología paso a paso
-- Resultados y métricas completas
-- Conclusiones y recomendaciones
+El análisis completo está documentado en:
+- [**Documentación técnica LaTeX**](Scripts/Lineal.tex) - Marco teórico, metodología y resultados detallados
+- [**Reporte del proyecto MotoTec**](Docs/Proyecto%20Ampliacion%20MotoTec.pdf) - Documento empresarial
+- [**Proyecto final de Álgebra Lineal**](Docs/Proyecto_final_ýlgebra_Lineal%20(1).pdf) - Entrega académica
+
+## 💻 Scripts Principales
+
+- [`analisis_completo.py`](Scripts/analisis_completo.py) - Análisis principal con regresión, Monte Carlo y visualizaciones
+- [`regresion_svd.py`](Scripts/regresion_svd.py) - Implementación alternativa usando descomposición SVD
+- [`Lineal.tex`](Scripts/Lineal.tex) - Documentación técnica completa en LaTeX
 
 ## 🔗 Referencias
 
@@ -115,3 +132,7 @@ El análisis completo está documentado en [`Lineal.tex`](Lineal.tex) con:
 - Descomposición en valores singulares (SVD)
 - Análisis de regresión multivariada
 - Simulación de Monte Carlo
+
+---
+
+**Repositorio GitHub**: [https://github.com/Rojas-09/Trabajo-Lineal.git](https://github.com/Rojas-09/Trabajo-Lineal.git)
