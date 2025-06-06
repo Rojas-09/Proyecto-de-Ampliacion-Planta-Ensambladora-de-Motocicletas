@@ -123,20 +123,11 @@ Matriz C (10×4) define requerimientos por tipo de moto:
 
 ## 📄 Documentación
 
-El análisis completo está documentado en:
-- [**Documentación técnica LaTeX**](Scripts/Lineal.tex) - Marco teórico, metodología y resultados detallados
-- [**Reporte del proyecto MotoTec**](Docs/Proyecto%20Ampliacion%20MotoTec.pdf) - Documento empresarial
-- [**Proyecto final de Álgebra Lineal**](Docs/Proyecto_final_ýlgebra_Lineal%20(1).pdf) - Entrega académica
-
-## 💻 Scripts Principales
-
-- [`analisis_completo.py`](Scripts/analisis_completo.py) - Análisis principal con regresión, Monte Carlo y visualizaciones
-- [`regresion_svd.py`](Scripts/regresion_svd.py) - Implementación alternativa usando descomposición SVD
-- [`Lineal.tex`](Scripts/Lineal.tex) - Documentación técnica completa en LaTeX
-
-## 🎬 Recursos Multimedia
-
-- **📺 [Video Explicativo Completo](https://youtu.be/6DL5IPnuLo0?si=0nF_Q2V1JAUpZO3w)** - Presentación detallada del proyecto, metodología y resultados
+El análisis completo está documentado en [`Lineal.tex`](Lineal.tex) con:
+- Marco teórico detallado
+- Metodología paso a paso
+- Resultados y métricas completas
+- Conclusiones y recomendaciones
 
 ## 🔗 Referencias
 
@@ -144,9 +135,3 @@ El análisis completo está documentado en:
 - Descomposición en valores singulares (SVD)
 - Análisis de regresión multivariada
 - Simulación de Monte Carlo
-
----
-
-**Repositorio GitHub**: [https://github.com/Rojas-09/Trabajo-Lineal.git](https://github.com/Rojas-09/Trabajo-Lineal.git)
-
-**🎥 Video del Proyecto**: [Ver en YouTube](https://youtu.be/6DL5IPnuLo0?si=0nF_Q2V1JAUpZO3w)
